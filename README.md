@@ -1,2 +1,3 @@
 # compile-timings
-Repo for holding the compile-timings output data from the Rust compiles performed by GitHub Actions.
+A repo for holding outputs of ```cargo build --timings``` performed by Github Actions in ```debate-map/app``` repo.
+It
