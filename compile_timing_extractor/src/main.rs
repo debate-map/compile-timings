@@ -1,4 +1,5 @@
 use anyhow::Context;
+use chrono::NaiveDateTime;
 use clap::Parser;
 use regex::Regex;
 use serde::Serialize;
@@ -24,7 +25,6 @@ struct CliArgs {
 struct BuildMetadata<'a> {
 	#[serde(rename = "t")]
 	total_time: f64,
-
 	#[serde(rename = "r")]
 	rustc_version: &'a str,
 
@@ -53,7 +53,6 @@ fn extract_units_data(content: &str) -> UnitsBuildData {
 
 	table_re.captures(content).and_then(|cap| cap.get(1)).map(|table| row_re.captures_iter(table.as_str()).map(|row| UnitBuildData { name: row[1].to_string(), time: row[2].trim_end_matches('s').parse().unwrap() }).collect()).unwrap_or_default()
 }
-
 fn extract_value<'a>(content: &'a str, pattern: &str) -> Option<&'a str> {
 	Regex::new(pattern).ok()?.captures(content).and_then(|cap| cap.get(1)).map(|m| m.as_str())
 }
@@ -89,7 +88,14 @@ fn main() -> anyhow::Result<()> {
 	let html_content = fs::read_to_string(input_path).context("Failed to read input file")?;
 
 	let mut tracker: BuildTracker = serde_json::from_str(&fs::read_to_string(tracker_path)?)?;
-	if tracker.contains(&input_filename.to_string()) {
+
+	let raw_time = extract_value(&input_filename, r"(\d{8}T\d{6}Z)").unwrap();
+	let build_start_unix_timestamp = {
+		let parsed = NaiveDateTime::parse_from_str(raw_time, "%Y%m%dT%H%M%SZ")?.and_utc();
+		parsed.timestamp() as u64
+	};
+
+	if tracker.contains(&raw_time.to_string()) {
 		anyhow::bail!("File with this timestamp has already been processed");
 	}
 
@@ -97,16 +103,16 @@ fn main() -> anyhow::Result<()> {
 		total_time: extract_value(&html_content, r"<td>Total time:</td><td>(\d+(?:\.\d+)?)s").unwrap().parse()?,
 		rustc_version: extract_value(&html_content, r"<td>rustc:</td><td>(rustc [\d\.\w-]+)").unwrap(),
 		total_units: extract_value(&html_content, r"<td>Total units:</td><td>(\d+)").unwrap().parse()?,
-		build_start_unix_timestamp: extract_value(input_filename, r"(\d{8}T\d{6}Z)").unwrap().parse()?, // TODO: this parse doesn't work, use chrono to parse
+		build_start_unix_timestamp,
 	};
 
 	let units_data = extract_units_data(&html_content);
 
-	write_json_file(&metadata_dir.join(format!("{}.json", build_metadata.build_start_unix_timestamp)), &build_metadata)?;
+	write_json_file(&metadata_dir.join(format!("metadata_{raw_time}.json")), &build_metadata)?;
 
-	write_json_file(&units_dir.join(format!("{}.json", build_metadata.build_start_unix_timestamp)), &units_data)?;
+	write_json_file(&units_dir.join(format!("units_{raw_time}.json")), &units_data)?;
 
-	tracker.push(input_filename.to_string());
+	tracker.push(raw_time.to_string());
 	write_json_file(tracker_path, &tracker)?;
 
 	Ok(())
