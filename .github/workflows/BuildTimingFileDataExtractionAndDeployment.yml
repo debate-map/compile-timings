@@ -1,6 +1,13 @@
 name: Extract data from build timing html files and perform react deployment
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 jobs:
   linux-ubuntu:
@@ -19,13 +26,14 @@ jobs:
         run: |
           mkdir -p timings/build_metadatas
           mkdir -p timings/build_units
-          #cargo run -- --input-file timings/cargo-timing-20240825T213151Z.html --tracker-file ./tracker.json --metadata-dir ./testing --units-data-dir ./abc
+          cd compile_timing_extractor
+          cargo run -- -r ../timings/raw_html -t ../timings/tracker.json -m ../timings/build_metadatas/ -u ../timings/build_units
 
-      #- name: Commit and push changes
-        #working-directory: compile-timings
-        #run: |
-          #git config user.name "compile-timings[bot]"
-          #git config user.email debatemap@gmail.com
-          #git add timings
-          #git commit -m "ci: add build timing information for app-server"
-          #git push
+      - name: Commit and push changes
+        working-directory: compile-timings
+        run: |
+          git config user.name "compile-timings[bot]"
+          git config user.email debatemap@gmail.com
+          git add timings
+          git commit -m "[skip ci]: generate JSON from build timing html files"
+          git push
