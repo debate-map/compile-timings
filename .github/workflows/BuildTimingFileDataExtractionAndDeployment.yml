@@ -35,7 +35,7 @@ jobs:
           git config user.name "compile-timings[bot]"
           git config user.email debatemap@gmail.com
           git diff --quiet && echo "No changes to commit" || {
-            git add timings
+            git add docs/timings
             git commit -m "[skip ci]: generate JSON from build timing html files"
             git push
           }
