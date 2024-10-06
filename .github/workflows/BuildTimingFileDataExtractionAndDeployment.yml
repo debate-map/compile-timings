@@ -1,0 +1,31 @@
+name: Extract data from build timing html files and perform react deployment
+
+on: [push, pull_request]
+
+jobs:
+  linux-ubuntu:
+    name: Extract timing information from new build timing html files
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          path: compile-timings
+      - name: Extract JSON out of build timing
+        working-directory: compile-timings
+        run: |
+          mkdir -p timings/build_metadatas
+          mkdir -p timings/build_units
+          #cargo run -- --input-file timings/cargo-timing-20240825T213151Z.html --tracker-file ./tracker.json --metadata-dir ./testing --units-data-dir ./abc
+
+      #- name: Commit and push changes
+        #working-directory: compile-timings
+        #run: |
+          #git config user.name "compile-timings[bot]"
+          #git config user.email debatemap@gmail.com
+          #git add timings
+          #git commit -m "ci: add build timing information for app-server"
+          #git push
