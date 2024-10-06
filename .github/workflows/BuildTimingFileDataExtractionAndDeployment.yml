@@ -56,15 +56,14 @@ jobs:
       - name: Deploy react build
         run: |
           cp -R react-build/* compile-timings/docs/
-          ls -R compile-timings/docs
 
       - name: Commit and push changes
         working-directory: compile-timings
         run: |
           git config user.name "compile-timings[bot]"
           git config user.email debatemap@gmail.com
-          git diff --quiet && echo "No changes to commit" || {
-            git add docs
+          git add docs
+          git diff --staged --quiet || {
             git commit -m "[skip ci]: generate JSON from build timing html files"
             git push
           }
