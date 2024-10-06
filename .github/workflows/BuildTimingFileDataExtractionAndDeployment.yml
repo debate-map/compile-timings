@@ -55,7 +55,7 @@ jobs:
           path: react-build
       - name: Deploy react build
         run: |
-          cp -R react-build/* compile-timings/docs/
+          cp -R react-build/* ../docs/
 
       - name: Commit and push changes
         working-directory: compile-timings
