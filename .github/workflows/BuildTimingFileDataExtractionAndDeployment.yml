@@ -24,10 +24,10 @@ jobs:
       - name: Extract JSON out of build timing
         working-directory: compile-timings
         run: |
-          mkdir -p timings/build_metadatas
-          mkdir -p timings/build_units
+          mkdir -p docs/timings/build_metadatas
+          mkdir -p docs/timings/build_units
           cd compile_timing_extractor
-          cargo run -- -r ../timings/raw_html -t ../timings/tracker.json -m ../timings/build_metadatas/ -u ../timings/build_units
+          cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas/ -u ../docs/timings/build_units
 
       - name: Commit and push changes
         working-directory: compile-timings
