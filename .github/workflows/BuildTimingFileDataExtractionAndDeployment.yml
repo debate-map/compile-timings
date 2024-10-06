@@ -21,13 +21,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: compile-timings
-      - name: Extract JSON out of build timing
+
+      - name: Checkout compile-timings-viewer repo
+        uses: actions/checkout@v4
+        with:
+          repository: debate-map/compile-timings-viewer
+          path: compile-timings-viewer
+
+      - name: Create missing directories & extract JSON out of build timing html(s)
         working-directory: compile-timings
         run: |
           mkdir -p docs/timings/build_metadatas
           mkdir -p docs/timings/build_units
           cd compile_timing_extractor
           cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas/ -u ../docs/timings/build_units
+
+      - name: Create react build and deploy
+        working-directory: compile-timings-viewer
+        run: |
+          yarn install
+          yarn run build
+          mv dist/* ../compile-timings/docs
 
       - name: Commit and push changes
         working-directory: compile-timings
