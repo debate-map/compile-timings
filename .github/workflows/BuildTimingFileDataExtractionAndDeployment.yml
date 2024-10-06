@@ -17,16 +17,28 @@ jobs:
       CARGO_TERM_COLOR: always
 
     steps:
-      - name: Checkout main repo
-        uses: actions/checkout@v4
-        with:
-          path: compile-timings
-
       - name: Checkout compile-timings-viewer repo
         uses: actions/checkout@v4
         with:
           repository: debate-map/compile-timings-viewer
           path: compile-timings-viewer
+
+      - name: Create react build from compile-timings-viewer
+        working-directory: compile-timings-viewer
+        run: |
+          yarn install
+          yarn run build
+
+      - name: Upload react build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: react-build
+          path: compile-timings-viewer/dist
+
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          path: compile-timings
 
       - name: Create missing directories & extract JSON out of build timing html(s)
         working-directory: compile-timings
@@ -36,12 +48,14 @@ jobs:
           cd compile_timing_extractor
           cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas/ -u ../docs/timings/build_units
 
-      - name: Create react build and deploy
-        working-directory: compile-timings-viewer
+      - name: Download react build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: react-build
+          path: react-build
+      - name: Deploy react build
         run: |
-          yarn install
-          yarn run build
-          mv dist/* ../compile-timings/docs
+          cp -R react-build/* compile-timings/docs/
 
       - name: Commit and push changes
         working-directory: compile-timings
@@ -49,7 +63,7 @@ jobs:
           git config user.name "compile-timings[bot]"
           git config user.email debatemap@gmail.com
           git diff --quiet && echo "No changes to commit" || {
-            git add docs/timings
+            git add docs
             git commit -m "[skip ci]: generate JSON from build timing html files"
             git push
           }
