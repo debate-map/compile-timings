@@ -13,19 +13,19 @@ use std::{
 struct CliArgs {
 	/// Directory with raw HTML files generated from `cargo build --timings`
 	/// (with their original filenames i.e not tampered after generating from `cargo build --timings`)
-	#[arg(short, long)]
+	#[arg(short)]
 	raw_html_files_dir: PathBuf,
 
 	/// JSON file to store processed HTML files timestamps
-	#[arg(short, long)]
+	#[arg(short)]
 	tracker_file: PathBuf,
 
 	/// Directory to store metadata JSON files(1 per HTML file)
-	#[arg(short, long)]
+	#[arg(short)]
 	metadata_dir: PathBuf,
 
 	/// Directory to store build units JSON files(1 per HTML file)
-	#[arg(short, long)]
+	#[arg(short)]
 	units_data_dir: PathBuf,
 }
 
@@ -99,6 +99,8 @@ fn main() -> anyhow::Result<()> {
 
 	for raw_html_file in raw_html_files {
 		let input_filename = raw_html_file.file_name().context("Invalid input filename")?.to_str().unwrap();
+		println!("Processing file: {}", input_filename);
+
 		let raw_time = extract_value(&input_filename, r"(\d{8}T\d{6}Z)").unwrap();
 
 		if !tracker.contains(&raw_time.to_string()) {
