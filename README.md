@@ -9,6 +9,10 @@ A repo for holding outputs of ```cargo build --timings``` performed by Github Ac
 
 ### NOTES:
 
+ #### "NA" meaning:
+In the difference chart "NA" means, the package is available in the base build but not in competitor build
+
+ #### Repeated package names:
 If we look at the raw html file of `cargo build --timings`, then we can see that `async-graphql` at
 [line 190](https://github.com/debate-map/compile-timings/blob/5b1585495f384af7aa7e884b7b9b00eae58f2268/docs/timings/raw_html/cargo-timing-20241006T165204Z.html#L190) and
 [ line 198](https://github.com/debate-map/compile-timings/blob/5b1585495f384af7aa7e884b7b9b00eae58f2268/docs/timings/raw_html/cargo-timing-20241006T165204Z.html#L198) on the same file, which basically
