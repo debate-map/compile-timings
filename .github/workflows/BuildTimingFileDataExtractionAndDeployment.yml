@@ -46,7 +46,7 @@ jobs:
           mkdir -p docs/timings/build_metadatas
           mkdir -p docs/timings/build_units
           cd compile_timing_extractor
-          cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas/ -u ../docs/timings/build_units
+          cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas.json -u ../docs/timings/build_units
 
       - name: Download react build artifact
         uses: actions/download-artifact@v3

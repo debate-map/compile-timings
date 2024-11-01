@@ -2,8 +2,9 @@ use anyhow::Context;
 use chrono::NaiveDateTime;
 use clap::Parser;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
+	collections::HashMap,
 	fs,
 	path::{Path, PathBuf},
 };
@@ -20,21 +21,24 @@ struct CliArgs {
 	#[arg(short)]
 	tracker_file: PathBuf,
 
-	/// Directory to store metadata JSON files(1 per HTML file)
+	/// JSON file to store metadata of all processed HTML files
 	#[arg(short)]
-	metadata_dir: PathBuf,
+	metadatas_file: PathBuf,
 
 	/// Directory to store build units JSON files(1 per HTML file)
 	#[arg(short)]
 	units_data_dir: PathBuf,
 }
 
-#[derive(Debug, Serialize)]
-struct BuildMetadata<'a> {
+type BuildMetadatas = HashMap<String, BuildMetadata>;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BuildMetadata {
 	#[serde(rename = "t")]
 	total_time: f64,
+
 	#[serde(rename = "r")]
-	rustc_version: &'a str,
+	rustc_version: String,
 
 	#[serde(rename = "u")]
 	total_units: usize,
@@ -42,7 +46,12 @@ struct BuildMetadata<'a> {
 	/// Build start timestamp in seconds
 	#[serde(rename = "b")]
 	build_start_unix_timestamp: u64,
+
+	/// Commit hash in `debate-map/app`, which triggered cargo timings
+	#[serde(rename = "h")]
+	commit_hash: String,
 }
+
 #[derive(Debug, Serialize)]
 struct UnitBuildData {
 	#[serde(rename = "u")]
@@ -81,8 +90,8 @@ fn main() -> anyhow::Result<()> {
 		write_json_file(&args.tracker_file, &Vec::<String>::new())?;
 	}
 
-	if !args.metadata_dir.exists() {
-		anyhow::bail!("Metadata directory does not exist");
+	if !args.metadatas_file.exists() {
+		anyhow::bail!("Metadatas file does not exist");
 	}
 
 	if !args.units_data_dir.exists() {
@@ -96,16 +105,18 @@ fn main() -> anyhow::Result<()> {
 	}
 
 	let mut tracker: BuildTracker = serde_json::from_str(&fs::read_to_string(&args.tracker_file)?)?;
+	let mut metadatas: BuildMetadatas = serde_json::from_str(&fs::read_to_string(&args.metadatas_file)?)?;
 
 	for raw_html_file in raw_html_files {
 		let input_filename = raw_html_file.file_name().context("Invalid input filename")?.to_str().unwrap();
 		println!("Processing file: {}", input_filename);
 
-		let raw_time = extract_value(&input_filename, r"(\d{8}T\d{6}Z)").unwrap();
+		let raw_time = extract_value(input_filename, r"(\d{8}T\d{6}Z)").context("Failed to extract raw time")?.to_string();
+		let commit_hash = input_filename.rsplit('_').next().unwrap().trim_end_matches(".html").to_string();
 
 		if !tracker.contains(&raw_time.to_string()) {
 			let build_start_unix_timestamp = {
-				let parsed = NaiveDateTime::parse_from_str(raw_time, "%Y%m%dT%H%M%SZ")?.and_utc();
+				let parsed = NaiveDateTime::parse_from_str(&raw_time, "%Y%m%dT%H%M%SZ")?.and_utc();
 				parsed.timestamp() as u64
 			};
 
@@ -113,20 +124,22 @@ fn main() -> anyhow::Result<()> {
 
 			let build_metadata = BuildMetadata {
 				total_time: extract_value(&html_content, r"<td>Total time:</td><td>(\d+(?:\.\d+)?)s").unwrap().parse()?,
-				rustc_version: extract_value(&html_content, r"<td>rustc:</td><td>(rustc [\d\.\w-]+)").unwrap(),
+				rustc_version: extract_value(&html_content, r"<td>rustc:</td><td>(rustc [\d\.\w-]+)").unwrap().to_string(),
 				total_units: extract_value(&html_content, r"<td>Total units:</td><td>(\d+)").unwrap().parse()?,
 				build_start_unix_timestamp,
+				commit_hash,
 			};
 
 			let units_data = extract_units_data(&html_content);
 
-			write_json_file(&args.metadata_dir.join(format!("metadata_{raw_time}.json")), &build_metadata)?;
 			write_json_file(&args.units_data_dir.join(format!("units_{raw_time}.json")), &units_data)?;
+			metadatas.insert(raw_time.to_string(), build_metadata);
 			tracker.push(raw_time.to_string());
 		}
 	}
 
 	write_json_file(&args.tracker_file, &tracker)?;
+	write_json_file(&args.metadatas_file, &metadatas)?;
 
 	Ok(())
 }
