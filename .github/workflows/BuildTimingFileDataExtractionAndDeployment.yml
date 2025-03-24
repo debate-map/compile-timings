@@ -30,7 +30,7 @@ jobs:
           yarn run build
 
       - name: Upload react build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: react-build
           path: compile-timings-viewer/dist
@@ -49,7 +49,7 @@ jobs:
           cargo run -- -r ../docs/timings/raw_html -t ../docs/timings/tracker.json -m ../docs/timings/build_metadatas.json -u ../docs/timings/build_units
 
       - name: Download react build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: react-build
           path: react-build
