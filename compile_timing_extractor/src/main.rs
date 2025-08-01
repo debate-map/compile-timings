@@ -16,15 +16,12 @@ struct CliArgs {
 	/// (with their original filenames i.e not tampered after generating from `cargo build --timings`)
 	#[arg(short)]
 	raw_html_files_dir: PathBuf,
-
 	/// JSON file to store processed HTML files timestamps
 	#[arg(short)]
 	tracker_file: PathBuf,
-
 	/// JSON file to store metadata of all processed HTML files
 	#[arg(short)]
 	metadatas_file: PathBuf,
-
 	/// Directory to store build units JSON files(1 per HTML file)
 	#[arg(short)]
 	units_data_dir: PathBuf,
@@ -36,17 +33,13 @@ type BuildMetadatas = HashMap<String, BuildMetadata>;
 struct BuildMetadata {
 	#[serde(rename = "t")]
 	total_time: f64,
-
 	#[serde(rename = "r")]
 	rustc_version: String,
-
 	#[serde(rename = "u")]
 	total_units: usize,
-
 	/// Build start timestamp in seconds
 	#[serde(rename = "b")]
 	build_start_unix_timestamp: u64,
-
 	/// Commit hash in `debate-map/app`, which triggered cargo timings
 	#[serde(rename = "h")]
 	commit_hash: String,
@@ -77,6 +70,12 @@ fn extract_value<'a>(content: &'a str, pattern: &str) -> Option<&'a str> {
 fn write_json_file<P: AsRef<Path>, T: Serialize>(path: P, data: &T) -> anyhow::Result<()> {
 	let json = serde_json::to_string(data)?;
 	fs::write(path, json).context("Failed to write JSON file")
+}
+
+fn extract_raw_time_and_commit_hash<T: AsRef<str>>(filename: T) -> anyhow::Result<(String, String)> {
+	let raw_time = extract_value(filename.as_ref(), r"(\d{8}T\d{6}(?:\.\d+)?)").context("Failed to extract raw time")?.to_string();
+	let commit_hash = filename.as_ref().rsplit('_').next().unwrap().trim_end_matches(".html").to_string();
+	Ok((raw_time, commit_hash))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -111,8 +110,7 @@ fn main() -> anyhow::Result<()> {
 		let input_filename = raw_html_file.file_name().context("Invalid input filename")?.to_str().unwrap();
 		println!("Processing file: {}", input_filename);
 
-		let raw_time = extract_value(input_filename, r"(\d{8}T\d{6}Z)").context("Failed to extract raw time")?.to_string();
-		let commit_hash = input_filename.rsplit('_').next().unwrap().trim_end_matches(".html").to_string();
+		let (raw_time, commit_hash) = extract_raw_time_and_commit_hash(input_filename)?;
 
 		if !tracker.contains(&raw_time.to_string()) {
 			let build_start_unix_timestamp = {
@@ -142,4 +140,29 @@ fn main() -> anyhow::Result<()> {
 	write_json_file(&args.metadatas_file, &metadatas)?;
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use chrono::{Datelike, Timelike};
+
+	#[test]
+	fn test_raw_time_and_commit_hash_extraction_and_parsing() -> anyhow::Result<()> {
+		let filename = "cargo-timing-20250725T214437.067643888Z_300007d.html";
+		let (raw_time, commit_hash) = super::extract_raw_time_and_commit_hash(filename)?;
+		assert_eq!(raw_time, "20250725T214437.067643888");
+		assert_eq!(commit_hash, "300007d");
+
+		let parsed_time = NaiveDateTime::parse_from_str(&raw_time, "%Y%m%dT%H%M%S%.f")?.and_utc();
+		assert_eq!(parsed_time.year(), 2025);
+		assert_eq!(parsed_time.month(), 7);
+		assert_eq!(parsed_time.day(), 25);
+		assert_eq!(parsed_time.hour(), 21);
+		assert_eq!(parsed_time.minute(), 44);
+		assert_eq!(parsed_time.second(), 37);
+		assert_eq!(parsed_time.nanosecond(), 67643888);
+
+		Ok(())
+	}
 }
